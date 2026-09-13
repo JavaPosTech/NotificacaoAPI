@@ -25,7 +25,7 @@ public class Notificacao {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer id;
 
-    @Column(name = "event_id", nullable = false, unique = true, length = 36)
+    @Column(name = "event_id", nullable = false, unique = true, length = 60)
     private String eventId;
 
     @Enumerated(EnumType.STRING)

@@ -1,0 +1,1 @@
+ALTER TABLE public.notificacao ALTER COLUMN event_id TYPE VARCHAR(60);

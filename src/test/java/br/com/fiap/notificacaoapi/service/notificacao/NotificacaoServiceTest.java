@@ -2,6 +2,9 @@ package br.com.fiap.notificacaoapi.service.notificacao;
 
 import br.com.fiap.notificacaoapi.config.AbstractTest;
 import br.com.fiap.notificacaoapi.enums.StatusNotificacao;
+import br.com.fiap.notificacaoapi.enums.TipoNotificacao;
+import br.com.fiap.notificacaoapi.model.entity.notificacao.Notificacao;
+import br.com.fiap.notificacaoapi.model.rabbitmq.AgendamentoAtualizadoEvent;
 import br.com.fiap.notificacaoapi.model.rabbitmq.AgendamentoCriadoEvent;
 import br.com.fiap.notificacaoapi.repository.notificacao.NotificacaoRepository;
 import br.com.fiap.notificacaoapi.service.rabbitmq.AgendamentoEventListener;
@@ -21,6 +24,9 @@ class NotificacaoServiceTest extends AbstractTest {
 
     @Autowired
     private AgendamentoEventListener agendamentoEventListener;
+
+    @Autowired
+    private NotificacaoService notificacaoService;
 
     @Autowired
     private NotificacaoRepository notificacaoRepository;
@@ -70,6 +76,56 @@ class NotificacaoServiceTest extends AbstractTest {
         agendamentoEventListener.receber(evento);
 
         Mockito.verify(notificacaoSender, Mockito.times(1)).enviar(Mockito.any());
+    }
+
+    @Test
+    void atualizacaoDeConsultaGeraNotificacaoComTipoAtualizadaTest() {
+        var eventId = UUID.randomUUID().toString();
+        var evento = criarEventoAtualizado(eventId);
+
+        Mockito.doNothing().when(notificacaoSender).enviar(Mockito.any());
+
+        Assertions.assertDoesNotThrow(() -> agendamentoEventListener.receber(evento));
+
+        var notificacao = notificacaoRepository.findByEventId(eventId).orElseThrow();
+        Assertions.assertEquals(TipoNotificacao.CONSULTA_ATUALIZADA, notificacao.getTipoNotificacao());
+        Assertions.assertNotNull(notificacao.getDataHoraAnterior());
+        Assertions.assertEquals(StatusNotificacao.ENVIADA, notificacao.getStatus());
+    }
+
+    @Test
+    void lembreteDuplicadoNaoGeraNovoRegistroTest() {
+        var consultaAtual = new Notificacao();
+        consultaAtual.setEventId(UUID.randomUUID().toString());
+        consultaAtual.setAgendamentoId(1);
+        consultaAtual.setPacienteNome("Paciente Teste");
+        consultaAtual.setPacienteEmail("paciente.teste@fiap.com");
+        consultaAtual.setMedicoNome("Médico Teste");
+        consultaAtual.setEspecialidade("Cardiologia");
+        consultaAtual.setDataHoraConsulta(LocalDateTime.now().plusDays(1));
+
+        var primeiro = notificacaoService.registrarLembretePendente(consultaAtual);
+        var segundo = notificacaoService.registrarLembretePendente(consultaAtual);
+
+        Assertions.assertTrue(primeiro.isPresent());
+        Assertions.assertTrue(segundo.isEmpty());
+    }
+
+    private AgendamentoAtualizadoEvent criarEventoAtualizado(String eventId) {
+        return new AgendamentoAtualizadoEvent(
+                eventId,
+                1,
+                1,
+                "Paciente Teste",
+                "paciente.teste@fiap.com",
+                1,
+                "Médico Teste",
+                "Cardiologia",
+                LocalDateTime.now().plusDays(5),
+                LocalDateTime.now().plusDays(1),
+                null,
+                LocalDateTime.now()
+        );
     }
 
     private AgendamentoCriadoEvent criarEventoCriado(String eventId) {

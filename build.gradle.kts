@@ -70,6 +70,48 @@ tasks.withType<Test> {
 	finalizedBy(tasks.jacocoTestReport)
 }
 
+fun semRastreioDeCobertura(diretorios: Collection<File>) = files(
+	diretorios.map {
+		fileTree(it) {
+			exclude(
+				"**/config/**",
+				"**/enums/**",
+				"**/exceptions/**",
+				"**/model/**",
+				"**/NotificacaoAPIApplication.class"
+			)
+		}
+	}
+)
+
+tasks.named<JacocoReport>("jacocoTestReport") {
+	dependsOn(tasks.test)
+
+	reports {
+		html.required.set(true)
+	}
+
+	classDirectories.setFrom(semRastreioDeCobertura(classDirectories.files))
+}
+
+tasks.jacocoTestCoverageVerification {
+	dependsOn(tasks.test)
+
+	classDirectories.setFrom(semRastreioDeCobertura(classDirectories.files))
+
+	violationRules {
+		rule {
+			limit {
+				minimum = "0.80".toBigDecimal()
+			}
+		}
+	}
+}
+
+tasks.check {
+	dependsOn(tasks.jacocoTestCoverageVerification)
+}
+
 tasks.named<JacocoReport>("jacocoTestReport") {
 	dependsOn(tasks.test)
 
