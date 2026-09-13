@@ -1,0 +1,37 @@
+services:
+  notificacaoapi:
+    container_name: NotificacaoAPI
+    build: .
+    image: notificacaoapi:1.0.0
+
+    environment:
+      TZ: America/Sao_Paulo
+
+      SPRING_PROFILES_ACTIVE: dev
+
+      DATABASE_IP: host.docker.internal
+      DATABASE_PORT: 5432
+      DATABASE_NAME: postgres2
+      DATABASE_USER: postgres
+      DATABASE_PASSWORD: "System@23"
+
+      RABBITMQ_HOST: duck-01.lmq.cloudamqp.com
+      RABBITMQ_PORT: 5671
+      RABBITMQ_USERNAME: wdvpncju
+      RABBITMQ_PASSWORD: "dNQi7K9zrvoU03r1uKHTz4B3CqjrDSFC"
+      RABBITMQ_VHOST: wdvpncju
+      RABBITMQ_SSL: true
+
+      MAIL_HOST: sandbox.smtp.mailtrap.io
+      MAIL_PORT: 587
+      MAIL_USERNAME: 19fc96ae5cade3
+      MAIL_PASSWORD: "00af3206a74807"
+      MAIL_FROM: naoresponda@hospital.fiap.br
+
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+    volumes:
+      - ./logs:/app/logs
+
+    restart: unless-stopped

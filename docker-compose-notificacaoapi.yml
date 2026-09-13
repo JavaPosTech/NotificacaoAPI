@@ -1,0 +1,39 @@
+services:
+  notificacaoapi:
+    container_name: NotificacaoAPI
+    build: .
+    image: notificacaoapi:1.0.0
+
+    environment:
+      TZ: America/Sao_Paulo
+
+      SPRING_PROFILES_ACTIVE: prod
+
+      DATABASE_IP: postgres
+      DATABASE_PORT: 5432
+      DATABASE_NAME: ${DATABASE_NAME:-postgres}
+      DATABASE_USER: ${DATABASE_USER:-postgres}
+      DATABASE_PASSWORD: ${DATABASE_PASSWORD:?defina DATABASE_PASSWORD no arquivo .env}
+
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USERNAME: ${RABBITMQ_USERNAME:?defina RABBITMQ_USERNAME no arquivo .env}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:?defina RABBITMQ_PASSWORD no arquivo .env}
+
+      MAIL_HOST: ${MAIL_HOST:?defina MAIL_HOST no arquivo .env}
+      MAIL_PORT: ${MAIL_PORT:-587}
+      MAIL_USERNAME: ${MAIL_USERNAME:?defina MAIL_USERNAME no arquivo .env}
+      MAIL_PASSWORD: ${MAIL_PASSWORD:?defina MAIL_PASSWORD no arquivo .env}
+      MAIL_FROM: ${MAIL_FROM:-naoresponda@hospital.fiap.br}
+
+    volumes:
+      - ./logs:/app/logs
+
+    restart: always
+
+    networks:
+      - shared-net
+
+networks:
+  shared-net:
+    external: true
