@@ -347,7 +347,7 @@ A suíte é composta principalmente por **testes de integração reais**: eles s
 ./gradlew test
 ```
 
-Os testes utilizam o perfil `test`, que carrega a configuração de banco de `TestDataBaseConfig`. Os valores padrão apontam para `localhost:5432` e para o banco `postgres2`; para usar o PostgreSQL da fase, exporte ao menos `DATABASE_PORT=8745` e `DATABASE_PASSWORD` antes de rodar a suíte. O RabbitMQ e o SMTP também possuem valores padrão no perfil `test`.
+Os testes utilizam o perfil `test`, que carrega a configuração de banco de `TestDataBaseConfig`. Os valores padrão apontam para o PostgreSQL da fase (`localhost:8745`, banco `postgres`), os mesmos usados pelo CI. Contra o banco compartilhado, exporte `DATABASE_NAME=notificacao` antes de rodar a suíte, para que o Flyway não esbarre nas migrations da AgendamentoAPI. O RabbitMQ e o SMTP também possuem valores padrão no perfil `test`.
 
 O único mock nos testes de integração é o `NotificacaoSender`, para não depender de um servidor SMTP real. O `EmailNotificacaoSenderTest` é um teste unitário, com o `JavaMailSender` mockado.
 
