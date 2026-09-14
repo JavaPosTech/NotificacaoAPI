@@ -157,7 +157,7 @@ Fila consumida: **`notificacao.email.agendamento`** (durável).
 
 O `RabbitMQConfig` declara a exchange, a fila e os bindings **com os mesmos nomes e argumentos** da AgendamentoAPI, de modo que tanto faz qual dos dois serviços sobe primeiro. Ele também registra um `DefaultClassMapper` com os mesmos Type IDs, apontando para as classes locais. Esse mapeamento é obrigatório: a AgendamentoAPI grava o Type ID, e não o nome completo da classe, no header `__TypeId__` da mensagem — sem ele, a desserialização falha.
 
-> ⚠️ **O contrato é estrito.** O Jackson está com `fail-on-unknown-properties: true`, então um campo novo no evento publicado pela AgendamentoAPI faz a desserialização falhar. Ao alterar os records de evento lá, altere também os de `model/rabbitmq/` aqui.
+> ⚠️ **O contrato é estrito.** O conversor de mensagens do `RabbitMQConfig` usa um `JsonMapper` com `DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES` habilitado, então um campo novo no evento publicado pela AgendamentoAPI faz a desserialização falhar e a mensagem é descartada, sem gerar notificação. O `JsonMapper` é montado explicitamente porque o conversor padrão do Spring AMQP desliga essa verificação, e a propriedade `spring.jackson` do `application.yaml` não chega até ele. Ao alterar os records de evento lá, altere também os de `model/rabbitmq/` aqui.
 
 > ⚠️ **Não há Dead Letter Queue.** O RabbitMQ exige que uma fila já existente seja redeclarada com argumentos **idênticos**; caso contrário, recusa a conexão com `406 PRECONDITION_FAILED`. Como a fila também é declarada, sem DLQ, pela AgendamentoAPI, adicionar `x-dead-letter-exchange` só aqui quebraria a integração. Para ter DLQ, os argumentos da fila precisam mudar **nos dois projetos ao mesmo tempo**.
 
@@ -167,7 +167,7 @@ O `RabbitMQConfig` declara a exchange, a fila e os bindings **com os mesmos nome
 
 Sem DLQ, a resiliência é tratada em duas camadas:
 
-1. **Retry local:** `EmailNotificacaoSender.enviar(...)` possui `@Retryable` para `MailException` — 3 tentativas, com espera inicial de 2 segundos que dobra a cada nova tentativa — absorvendo falhas transitórias de SMTP sem devolver a mensagem à fila.
+1. **Retry local:** `EmailNotificacaoSender.enviar(...)` possui `@Retryable` para `MailException` — 3 tentativas, com espera inicial de 2 segundos que dobra a cada nova tentativa — absorvendo falhas transitórias de SMTP sem devolver a mensagem à fila. Cada tentativa tem limite de 5 segundos para conectar, ler e escrever (`mail.smtp.connectiontimeout`, `mail.smtp.timeout` e `mail.smtp.writetimeout`), então um servidor de e-mail que não responde gera `FALHA` em cerca de 20 segundos, em vez de prender o único consumidor da fila no timeout do sistema operacional.
 2. **Persistência como fonte da verdade:** se todas as tentativas falharem, o listener captura a exceção, grava o status `FALHA` com a mensagem de erro e confirma a mensagem normalmente. Isso evita um loop infinito de reentrega causado por uma mensagem que nunca será processada.
 
 > ℹ️ O container do listener usa `setDefaultRequeueRejected(false)`. Uma exceção que aconteça **antes** do registro da notificação — por exemplo, erro de desserialização ou banco indisponível — faz a mensagem ser rejeitada e descartada, sem voltar para a fila.
@@ -296,7 +296,7 @@ $ Exemplo: 587
 $ Exemplo: naoresponda@hospital.fiap.br
 ```
 
-Se `MAIL_HOST`, `MAIL_USERNAME` ou `MAIL_PASSWORD` não estiverem preenchidas, o Compose da aplicação interrompe a execução com uma mensagem explícita, em vez de subir com valores em branco. `DATABASE_PASSWORD` e `RABBITMQ_PASSWORD` não têm valor padrão e precisam ser as mesmas usadas na criação da infraestrutura.
+Se `DATABASE_PASSWORD`, `RABBITMQ_PASSWORD`, `MAIL_HOST`, `MAIL_USERNAME` ou `MAIL_PASSWORD` não estiverem preenchidas, o Compose interrompe a execução com uma mensagem explícita, em vez de subir com valores em branco. As senhas do banco e do broker precisam ser as mesmas usadas na criação da infraestrutura.
 
 > ℹ️ `DATABASE_NAME` é o banco padrão do PostgreSQL da fase: cria o container do banco e serve de conexão inicial para o container que cria o banco deste serviço. A aplicação usa `NOTIFICACAO_DATABASE_NAME` (padrão `notificacao`), então não há risco de o Flyway rodar no banco da AgendamentoAPI.
 
@@ -355,13 +355,14 @@ O único mock nos testes de integração é o `NotificacaoSender`, para não dep
 
 ### 📊 Cobertura
 
-A suíte conta atualmente com **13 testes distribuídos em 3 classes**:
+A suíte conta atualmente com **16 testes distribuídos em 4 classes**:
 
 | Classe | O que cobre |
 | --- | --- |
 | `NotificacaoServiceTest` | Envio com sucesso marca `ENVIADA`; falha no envio preserva o registro com `FALHA`; evento duplicado não gera segundo envio; evento de atualização gera `CONSULTA_ATUALIZADA`; lembrete duplicado não gera novo registro. |
 | `LembreteConsultaJobTest` | Lembrete enviado para consulta de amanhã; job rodando duas vezes não duplica; apenas o último estado do agendamento é considerado; consulta em outra data não gera lembrete; falha no envio grava `FALHA`. |
 | `EmailNotificacaoSenderTest` | Assunto, destinatário e corpo corretos para cada um dos três tipos de notificação. |
+| `ContratoEventosTest` | Eventos de consulta criada e atualizada dentro do contrato são convertidos para os records. Evento com campo fora do contrato é recusado pelo conversor. |
 
 Ao final da execução, o **JaCoCo** gera o relatório completo em:
 

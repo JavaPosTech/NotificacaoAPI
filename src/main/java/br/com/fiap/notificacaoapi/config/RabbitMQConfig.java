@@ -13,6 +13,8 @@ import org.springframework.amqp.support.converter.DefaultClassMapper;
 import org.springframework.amqp.support.converter.JacksonJsonMessageConverter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import tools.jackson.databind.DeserializationFeature;
+import tools.jackson.databind.json.JsonMapper;
 
 import java.util.Map;
 
@@ -72,7 +74,11 @@ public class RabbitMQConfig {
 
     @Bean
     public JacksonJsonMessageConverter jsonMessageConverter(DefaultClassMapper rabbitClassMapper) {
-        var jsonMessageConverter = new JacksonJsonMessageConverter();
+        var jsonMapper = JsonMapper.builder()
+                .enable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
+                .build();
+
+        var jsonMessageConverter = new JacksonJsonMessageConverter(jsonMapper);
         jsonMessageConverter.setClassMapper(rabbitClassMapper);
 
         return jsonMessageConverter;
