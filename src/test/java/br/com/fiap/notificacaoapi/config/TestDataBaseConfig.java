@@ -16,13 +16,13 @@ public class TestDataBaseConfig {
     @Value("${DATABASE_USER:postgres}")
     private String usuario;
 
-    @Value("${DATABASE_PASSWORD:System@23}")
+    @Value("${DATABASE_PASSWORD:fiap@2026}")
     private String senha;
 
-    @Value("${DATABASE_PORT:5432}")
+    @Value("${DATABASE_PORT:8745}")
     private String porta;
 
-    @Value("${DATABASE_NAME:postgres2}")
+    @Value("${DATABASE_NAME:postgres}")
     private String nome;
 
     private String getUrl() {
