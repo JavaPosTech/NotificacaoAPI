@@ -1,0 +1,110 @@
+name: fiap-fase3-dev
+
+services:
+  postgres:
+    image: postgres:18
+    container_name: postgres-fase3
+
+    environment:
+      TZ: America/Sao_Paulo
+
+      POSTGRES_DB: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: fiap@2026
+
+    ports:
+      - "8745:5432"
+
+    volumes:
+      - postgres-data:/var/lib/postgresql
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+    restart: always
+
+    networks:
+      - shared-net
+
+  rabbitmq:
+    image: rabbitmq:4-management
+    container_name: rabbitmq-fase3
+
+    environment:
+      TZ: America/Sao_Paulo
+
+      RABBITMQ_DEFAULT_USER: fiap
+      RABBITMQ_DEFAULT_PASS: fiap@2026
+
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+    restart: always
+
+    networks:
+      - shared-net
+
+  notificacao-database:
+    image: postgres:18
+    container_name: notificacao-database-fase3
+
+    environment:
+      TZ: America/Sao_Paulo
+
+      PGHOST: postgres
+      PGPORT: 5432
+      PGUSER: postgres
+      PGPASSWORD: fiap@2026
+      PGDATABASE: postgres
+
+      NOTIFICACAO_DATABASE_NAME: notificacao
+
+    init: true
+
+    entrypoint: ["sh", "-c"]
+    command:
+      - |
+        until pg_isready -q; do sleep 2; done
+        psql -tAc "SELECT 1 FROM pg_database WHERE datname = '$$NOTIFICACAO_DATABASE_NAME'" | grep -q 1 ||
+        psql -c "CREATE DATABASE \"$$NOTIFICACAO_DATABASE_NAME\"" || exit 1
+        exec sleep infinity
+
+    healthcheck:
+      test: ["CMD-SHELL", "psql -tAc \"SELECT 1 FROM pg_database WHERE datname = '$$NOTIFICACAO_DATABASE_NAME'\" | grep -q 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+    restart: always
+
+    networks:
+      - shared-net
+
+volumes:
+  postgres-data:
+    name: fiap-postgres-data-dev
+
+  rabbitmq-data:
+    name: fiap-rabbitmq-data-dev
+
+networks:
+  shared-net:
+    name: shared-net

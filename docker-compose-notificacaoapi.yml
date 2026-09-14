@@ -1,4 +1,41 @@
 services:
+  notificacaoapi-database:
+    image: postgres:18
+    container_name: NotificacaoAPI-Database
+
+    environment:
+      TZ: America/Sao_Paulo
+
+      PGHOST: postgres
+      PGPORT: 5432
+      PGUSER: ${DATABASE_USER:-postgres}
+      PGPASSWORD: ${DATABASE_PASSWORD}
+      PGDATABASE: ${DATABASE_NAME:-postgres}
+
+      NOTIFICACAO_DATABASE_NAME: ${NOTIFICACAO_DATABASE_NAME:-notificacao}
+
+    init: true
+
+    entrypoint: ["sh", "-c"]
+    command:
+      - |
+        until pg_isready -q; do sleep 2; done
+        psql -tAc "SELECT 1 FROM pg_database WHERE datname = '$$NOTIFICACAO_DATABASE_NAME'" | grep -q 1 ||
+        psql -c "CREATE DATABASE \"$$NOTIFICACAO_DATABASE_NAME\"" || exit 1
+        exec sleep infinity
+
+    healthcheck:
+      test: ["CMD-SHELL", "psql -tAc \"SELECT 1 FROM pg_database WHERE datname = '$$NOTIFICACAO_DATABASE_NAME'\" | grep -q 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+    restart: always
+
+    networks:
+      - shared-net
+
   notificacaoapi:
     container_name: NotificacaoAPI
     build: .
@@ -11,14 +48,14 @@ services:
 
       DATABASE_IP: postgres
       DATABASE_PORT: 5432
-      DATABASE_NAME: ${DATABASE_NAME:-postgres}
+      DATABASE_NAME: ${NOTIFICACAO_DATABASE_NAME:-notificacao}
       DATABASE_USER: ${DATABASE_USER:-postgres}
-      DATABASE_PASSWORD: ${DATABASE_PASSWORD:?defina DATABASE_PASSWORD no arquivo .env}
+      DATABASE_PASSWORD: ${DATABASE_PASSWORD}
 
       RABBITMQ_HOST: rabbitmq
       RABBITMQ_PORT: 5672
-      RABBITMQ_USERNAME: ${RABBITMQ_USERNAME:?defina RABBITMQ_USERNAME no arquivo .env}
-      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:?defina RABBITMQ_PASSWORD no arquivo .env}
+      RABBITMQ_USERNAME: ${RABBITMQ_USERNAME:-fiap}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
 
       MAIL_HOST: ${MAIL_HOST:?defina MAIL_HOST no arquivo .env}
       MAIL_PORT: ${MAIL_PORT:-587}
@@ -28,6 +65,10 @@ services:
 
     volumes:
       - ./logs:/app/logs
+
+    depends_on:
+      notificacaoapi-database:
+        condition: service_healthy
 
     restart: always
 

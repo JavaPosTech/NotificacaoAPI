@@ -20,8 +20,7 @@ public class LembreteConsultaJob {
 
     private final NotificacaoSender notificacaoSender;
 
-    //@Scheduled(cron = "0 0 8 * * *")
-    @Scheduled(cron = "0 * * * * *")
+    @Scheduled(cron = "0 0 8 * * *")
     public void enviarLembretes() {
         var amanha = LocalDate.now().plusDays(1);
         var consultasDeAmanha = notificacaoRepository.findUltimoEstadoPorAgendamentoNaData(amanha);
