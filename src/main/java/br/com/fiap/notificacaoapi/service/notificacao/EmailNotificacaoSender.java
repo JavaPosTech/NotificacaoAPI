@@ -47,6 +47,7 @@ public class EmailNotificacaoSender implements NotificacaoSender {
         message.setSubject(assuntoPara(notificacao.getTipoNotificacao()));
         message.setText(corpoPara(notificacao));
 
+        log.info("Enviando e-mail... - Destinatário: [{}] - Mensagem: [{}]", notificacao.getPacienteEmail(), message.getSubject());
         mailSender.send(message);
     }
 
